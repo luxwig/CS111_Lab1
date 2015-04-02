@@ -1,6 +1,5 @@
 // UCLA CS 111 Lab 1 command reading
 #define UNUSED(X) (void)(X)
-#define _TEST_STR_TO_CMD
 #include "command.h"
 #include "command-internals.h"
 #include "alloc.h"
@@ -132,7 +131,6 @@ struct command_stream
   size_t capacity;
 };
 
-#ifdef _TEST_STR_TO_CMD
 int get_precedence(char* op)
 {
   if (op[0] == '(') return -1;
@@ -329,53 +327,6 @@ command_t str_to_cmd (char* str)
   free_cmd_stack(&cs);
   return rr;
 }
-
-
-#else
-
-command_t str_to_cmd (char* str)
-{
-  char const d_label[][3] = { "&&", ";", "||", "|", "(" };
-  //size_t size = strlen(str);
-  char *dptr = NULL,
-       *tmp;
-  int i, 
-      op = -1;
-  for (i = 0; i < 5; i++)
-  {
-    tmp = strstr(str, d_label[i]);
-    if (!tmp) continue;
-    if (dptr)
-    {
-      op = dptr>tmp?i:op;
-      dptr = dptr>tmp?tmp:dptr;
-    }
-    else
-    {
-      op = i;
-      dptr = tmp;
-    }
-  }
-
-  command_t cmd;
-  // SIMPLE CMD
-  if (!dptr)
-  {
-    cmd = checked_malloc(sizeof(struct command));
-    w
-    cmd->type = SIMPLE_COMMAND;
-    cmd->status = -1;
-    cmd->u.word  = checked_malloc(sizeof(char*));
-    *(cmd->u.word) = checked_malloc(sizeof(char) * strlen(str)+1);
-    strcpy(*(cmd->u.word),str);
-    cmd->input = NULL;
-    cmd->output = NULL;
-  }
-  else cmd = NULL;
-  return cmd; 
-}
-
-#endif
 
 command_stream_t
 make_command_stream (int (*get_next_byte) (void *),
