@@ -5,6 +5,7 @@
 #include <error.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 static void
 memory_exhausted (int errnum)
@@ -23,13 +24,17 @@ check_nonnull (void *p)
 void *
 checked_malloc (size_t size)
 {
-  return check_nonnull (malloc (size ? size : 1));
+  void *ptr = check_nonnull (malloc (size ? size : 1));
+  printf("MEMORY ALLOCATED - ADDR: %p\tSIZE : %d\n", ptr, (unsigned int)size);
+  return ptr;
 }
 
 void *
 checked_realloc (void *ptr, size_t size)
 {
-  return check_nonnull (realloc (ptr, size ? size : 1));
+  void *ptr1 = check_nonnull (realloc (ptr, size ? size : 1));
+  printf("MEMORY REALLOCATED - %p->%p\tSIZE : %d\n", ptr1, ptr, (unsigned int)size);
+  return ptr1;
 }
 
 void *
