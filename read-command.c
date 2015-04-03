@@ -14,7 +14,6 @@
 /* FIXME: Define the type 'struct command_stream' here.  This should
    complete the incomplete type declaration in command.h.  */
 
-
 struct elements
 {
   char* data;
@@ -120,6 +119,7 @@ void c_strcpy(char* dest, char* src)
   tmp[strlen(src)] = 0;
   strcpy(dest,tmp);
   dest[strlen(tmp)] = 0;
+  free(tmp);//MEMLEAK
 }
 
 #ifdef _TEST_OLD
@@ -252,7 +252,8 @@ char** get_func(char* str)
   t = c_strncpy(NULL, func+p, func+i-1);
   r[cp] = t;
   cp++;
-  r[cp] = NULL; 
+  r[cp] = NULL;
+  free(func);
   return r;
 }
 
@@ -415,6 +416,8 @@ command_t str_to_cmd (char* str)
     e[size].is_op = false;
     size++;
   }
+
+  free(tmp); // MEMLEAK
   /* DEBUG : 
   size_t i;
   for (i = 0; i < size; i++)
@@ -495,6 +498,10 @@ command_t str_to_cmd (char* str)
   }
   command_t rr = cmd_pop(&cs);
   free_cmd_stack(&cs);
+  for (i = 0; i < size; i ++)  //MEMLEAK
+    free(e[i].data);
+  free(e);
+  free(output);
   return rr;
 }
 
