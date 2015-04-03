@@ -206,7 +206,7 @@ char* c_strncpy(char* dest, char* src_str, char* src_end)
   return tmp;
 }
 
-char* get_func(char* str)
+char** get_func(char* str)
 {
   char* func = checked_malloc(sizeof(char) * (strlen(str) + 1));
   strcpy(func, str);
@@ -221,11 +221,39 @@ char* get_func(char* str)
     strncpy(func, p1, r1-p1);
     func[r1-p1] = 0;
     func = c_strncpy(func, func, get_last_none_space(func));
-    return func;
   }
-  strncpy(func, p1, p2-p1+1);
-  func[p2-p1+1] = 0;
-  return func;
+  else {
+    strncpy(func, p1, p2-p1+1);
+    func[p2-p1+1] = 0;
+  }
+  size_t size = strlen(func);
+  size_t i = 0,
+	 p = 0,
+	 cp = 0;
+  char* t; 
+  bool b = true;
+  char** r = checked_malloc(sizeof(char*) * (strlen(str) + 1));
+  for(i = 0; i < size; i++)
+  {
+    if (b && (func[i] == ' ' || func[i] == '\t'))
+    {
+      t = c_strncpy(NULL, func+p, func+i-1);
+      r[cp] = t;
+      cp++;
+      b = false;
+      continue;
+    }
+    if (!b && (func[i] != ' ' && func[i] != '\t'))
+    {
+      p = i;
+      b = true;
+    }
+  }
+  t = c_strncpy(NULL, func+p, func+i-1);
+  r[cp] = t;
+  cp++;
+  r[cp] = NULL; 
+  return r;
 }
 
 char* get_input(char *str)
@@ -314,9 +342,7 @@ command_t create_cmd(struct elements* e, command_t op1, command_t op2)
   }
   r->type = SIMPLE_COMMAND;
   r->status = -1;
-  r->u.word = checked_malloc(sizeof(char*) * 2);
-  r->u.word[1] = NULL;
-  *(r->u.word) = get_func(e->data);
+  r->u.word = get_func(e->data);
   r->input = get_input(e->data);
   r->output = get_output(e->data);
   return r;
