@@ -178,12 +178,17 @@ char* get_func(char* str)
 }
 #else
 
+bool is_special(char *str)
+{
+  char c = str[0];
+  return (c == '(' || c == '|' || c == '&' || c == ')' || c == ';');
+}
 
 char* get_first_none_space(char* str)
 {
   size_t size = strlen(str), i;
   for (i = 0 ; i < size; i++)
-    if (str[i] != '\t' && str[i] != ' ') return str + i;
+    if (str[i] != '\t' && str[i] != ' ' && str[i] != '\n') return str + i;
   return NULL;
 }
 
@@ -192,7 +197,7 @@ char* get_last_none_space(char*str)
 {
   size_t size = strlen(str), i;
   for (i = size - 1; i > 0; i--)
-    if (str[i] != '\t' && str[i] != ' ') return str + i;
+    if (str[i] != '\t' && str[i] != ' ' && str[i] != '\n') return str + i;
   return str;
 }
 
@@ -538,36 +543,63 @@ make_command_stream (int (*get_next_byte) (void *),
     if (t == '#') {
     // TODO : move towards the next line
     }
-    if (prant == 0 &&  t == '\n') {
-      buffer[count]=0;
-    // DEBUG : printf("*%s\n", buffer);
-      count = 0;
-      cmd = str_to_cmd(buffer);
-      (ct->m_command)[ct->size] = cmd;
-      ct->size++;
-      if (ct->size >= ct->capacity)
-      {
-	ct->capacity*=2;
-	ct->m_command = checked_grow_alloc(ct->m_command, &(ct->capacity));
-	ct->p_current = ct->m_command;
-      }
-      continue;
-    }
-    if (prant > 0 && t == '\n')
+    if (t == '\n')
     {
-      buffer[count] = ' ';
+      if (prant == 0)
+      {	
+	if (count > 0  && 
+	    !is_special(get_last_none_space(buffer)) &&
+	    buffer[count-1] == '\n') 
+	{
+          buffer[count - 1]=0;
+          // DEBUG : printf("*%s\n", buffer);
+          count = 0;
+          cmd = str_to_cmd(buffer);
+          (ct->m_command)[ct->size] = cmd;
+          ct->size++;
+          if (ct->size >= ct->capacity)
+          {
+	    ct->capacity*=2;
+	    ct->m_command = checked_grow_alloc(ct->m_command, &(ct->capacity));
+	    ct->p_current = ct->m_command;
+	  }
+	  continue;
+        }
+        else 
+        {
+	  if ( is_special(get_last_none_space(buffer)) ) buffer[count] = ' ';
+	  else buffer[count] = '\n'; 
+        }
+      }
+      if (prant > 0) buffer[count] = ' ';
+      if (prant < 0) error(1,0, "ERROR"); // TODO : ERROR MSG HANDLE
     }
-    else 
+    else
+    { 
+      if (count > 0 && buffer[count-1] == '\n')
+	buffer[count-1] = ';';
       buffer[count] = t;
+    }
     if (t == '(') prant++;
     if (t == ')') prant--;
     if (++count >= size) {
       size*=2;
       buffer = checked_grow_alloc(buffer, &size);
     }
-  }while(t>=0 && t != EOF); 
-  buffer[count] = 0;
-  
+    buffer[count] = 0;
+  }while(t>=0 && t != EOF);
+  if (count != 0)
+  { 
+          cmd = str_to_cmd(buffer);
+          (ct->m_command)[ct->size] = cmd;
+          ct->size++;
+          if (ct->size >= ct->capacity)
+          {
+	    ct->capacity*=2;
+	    ct->m_command = checked_grow_alloc(ct->m_command, &(ct->capacity));
+	    ct->p_current = ct->m_command;
+	  }
+  }
   ct->p_current = ct->m_command; 
   
   free(buffer);
