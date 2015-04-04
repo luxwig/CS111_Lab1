@@ -180,10 +180,17 @@ char* get_func(char* str)
 
 bool is_special(char *str)
 {
+  if (str == NULL) return false;
   char c = str[0];
   return (c == '(' || c == '|' || c == '&' || c == ')' || c == ';');
 }
 
+bool is_space(char *str)
+{
+  if (str == NULL) return false;
+  char c = str[0];
+  return (c == ' ' || c == '\t' || c == '\n');
+}
 char* get_first_none_space(char* str)
 {
   size_t size = strlen(str), i;
@@ -540,13 +547,14 @@ make_command_stream (int (*get_next_byte) (void *),
   do{
     t = get_next_byte(fm);
     if (t == EOF || t < 0 ) break;
-    if (t == '#') {
-    // TODO : move towards the next line
-    }
+    if (t == '#' && (count == 0 || is_space(&buffer[count-1])))
+      while ((t != EOF && t >= 0) && t != '\n')
+	t = get_next_byte(fm);
     if (t == '\n')
     {
       if (prant == 0)
-      {	
+      {
+	if (count == 0) continue;	
 	if (count > 0  && 
 	    !is_special(get_last_none_space(buffer)) &&
 	    buffer[count-1] == '\n') 
@@ -590,6 +598,7 @@ make_command_stream (int (*get_next_byte) (void *),
   }while(t>=0 && t != EOF);
   if (count != 0)
   { 
+      if (prant !=  0) error(1,0, "ERROR"); // TODO : ERROR MSG HANDLE
           cmd = str_to_cmd(buffer);
           (ct->m_command)[ct->size] = cmd;
           ct->size++;
