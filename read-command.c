@@ -8,11 +8,19 @@
 #include <string.h>
 #include <error.h>
 #include <stdio.h>
+
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
 
 /* FIXME: Define the type 'struct command_stream' here.  This should
    complete the incomplete type declaration in command.h.  */
+
+
+void* errorHandler(char* msg, int num)
+{
+  error(1, 0, "LINE %d: %s", num, msg);
+  return NULL;
+}
 
 struct elements
 {
@@ -148,6 +156,10 @@ char* get_last_none_space(char*str)
 
 void c_strncpy(char* dest, char* src_str, char* src_end)
 {
+  if (src_end < src_str || src_str == NULL || src_end == NULL){
+    free(dest);
+    return NULL;
+  }
   int size = (src_end-src_str)+1;
   char* tmp = checked_malloc(sizeof(char) * (size+1));
   strncpy(tmp, src_str, size);
@@ -210,6 +222,10 @@ char* get_last_none_space(char*str)
 
 char* c_strncpy(char* dest, char* src_str, char* src_end)
 {
+  if (src_end < src_str || !src_str || !src_end) {
+    free(dest);
+    return NULL;
+  }
   int size = (src_end-src_str)+1;
   char* tmp = checked_malloc(sizeof(char) * (size+1));
   strncpy(tmp, src_str, size);
@@ -217,6 +233,45 @@ char* c_strncpy(char* dest, char* src_str, char* src_end)
   free(dest);
   return tmp;
 }
+
+int get_none_p_special(char* str)
+{
+  char const d_label[][3] = { "&&", ";", "||", "|" };
+  char *dptr = NULL,
+       *tmp;
+  int i; 
+  for (i = 0; i < 4; i++)
+  {
+    tmp = strstr(str, d_label[i]);
+    if (!tmp) continue;
+    if (dptr)
+      dptr = dptr>tmp?tmp:dptr;
+    else
+      dptr = tmp;
+  }
+  return dptr?dptr-str:-1;
+}
+
+int get_special(char* str)
+{
+  char const d_label[][3] = { "&&", ";", "||", "|", "(", ")" };
+  char *dptr = NULL,
+       *tmp;
+  int i; 
+  for (i = 0; i < 6; i++)
+  {
+    tmp = strstr(str, d_label[i]);
+    if (!tmp) continue;
+    if (dptr)
+      dptr = dptr>tmp?tmp:dptr;
+    else
+      dptr = tmp;
+  }
+  return dptr?dptr-str:-1;
+}
+
+
+
 
 char** get_func(char* str)
 {
@@ -230,6 +285,7 @@ char** get_func(char* str)
   if (r1 || r2)
   {
     r1 = r1?r1:r2;
+    if (r1 - p1 <= 0) return NULL;
     strncpy(func, p1, r1-p1);
     func[r1-p1] = 0;
     func = c_strncpy(func, func, get_last_none_space(func));
@@ -266,10 +322,11 @@ char** get_func(char* str)
   cp++;
   r[cp] = NULL;
   free(func);
+  if (get_special(t) != -1 || strchr(t,'&') != NULL) return NULL;
   return r;
 }
 
-char* get_input(char *str)
+char* get_input(char *str, bool* valid)
 {
   char* func = checked_malloc(sizeof(char) * (strlen(str) + 1));
   strcpy(func, str);
@@ -278,17 +335,23 @@ char* get_input(char *str)
   if (r1)
   { 
     r2 = r2? r2-1 : str + strlen(str) - 1;
+    if (r2 > r1){
     strncpy(func, r1+1, r2-r1);
     func[r2-r1] = 0;
     func = c_strncpy(func,
 	get_first_none_space(func),
 	get_last_none_space(func));
+    } else {func = NULL;}
+    if (valid)
+      *valid = !(!func ||
+	  strchr(func, '<') || strchr(func, '>') || !get_first_none_space(func));
     return func;
   }
+  if (valid) *valid = true;
   return NULL;
 }
 
-char* get_output(char *str)
+char* get_output(char *str, bool* valid)
 {
   char* func = checked_malloc(sizeof(char) * (strlen(str) + 1));
   strcpy(func, str);
@@ -296,13 +359,21 @@ char* get_output(char *str)
   char* r2 = str + strlen(str) - 1;
   if (r1)
   {
+    if (r2 > r1){
     strncpy(func, r1+1, r2-r1);
     func[r2-r1] = 0;
     func = c_strncpy(func,
 	get_first_none_space(func),
 	get_last_none_space(func));
+    }
+    else func = NULL;
+    if (valid) 
+      *valid = !( !func ||  
+	  strchr(func, '<') || strchr(func, '>') || 
+	  !get_first_none_space(func));
     return func;
   }
+  if (valid) *valid = true;
   return NULL;
 }
 #endif
@@ -325,15 +396,25 @@ int get_precedence(char* op)
 
 enum command_type get_type(char *op)
 {
+  if (op[0] == '(') return SUBSHELL_COMMAND;
   if (op[0] == ';') return SEQUENCE_COMMAND;
   if (op[1] == '&') return AND_COMMAND;
   if (op[1] == '|') return OR_COMMAND;
   return PIPE_COMMAND;
 }
+
 command_t create_cmd(struct elements* e, command_t op1, command_t op2)
 {
   command_t r = checked_malloc(sizeof(struct command));
-  if (e->is_op)
+  if (get_type(e->data) == SUBSHELL_COMMAND)
+  {
+    r->type = SUBSHELL_COMMAND;
+    r->status = -1;
+    r->u.subshell_command = op1;
+    r->output = NULL;
+    r->input = NULL;
+  }
+  else if (e->is_op)
   {
     r->type = get_type(e->data);
     r->status = -1;
@@ -341,7 +422,21 @@ command_t create_cmd(struct elements* e, command_t op1, command_t op2)
     r->u.command[1] = op2;
     r->output = NULL;
     r->input = NULL;
-    if (e->is_sub)
+  }
+  else
+  {
+    bool b = false;
+    r->type = SIMPLE_COMMAND;
+    r->status = -1;
+    r->u.word = get_func(e->data);
+    if (!(r->u.word)) return NULL;
+    r->input = get_input(e->data, &b);
+    if (!b) return NULL; // ERROR NEED HANDLE
+    r->output = get_output(e->data, &b);
+    if (!b) return NULL; // ERROR NEED HANDLE
+  }
+  /*
+  if (e->is_sub)
     {
       command_t r1 = r;
       r = checked_malloc(sizeof(struct command));
@@ -351,32 +446,8 @@ command_t create_cmd(struct elements* e, command_t op1, command_t op2)
       r->input = NULL;
       r->u.subshell_command = r1;
     }
-    return r;
-  }
-  r->type = SIMPLE_COMMAND;
-  r->status = -1;
-  r->u.word = get_func(e->data);
-  r->input = get_input(e->data);
-  r->output = get_output(e->data);
+  */
   return r;
-}
-
-int get_special(char* str)
-{
-  char const d_label[][3] = { "&&", ";", "||", "|", "(", ")" };
-  char *dptr = NULL,
-       *tmp;
-  int i; 
-  for (i = 0; i < 6; i++)
-  {
-    tmp = strstr(str, d_label[i]);
-    if (!tmp) continue;
-    if (dptr)
-      dptr = dptr>tmp?tmp:dptr;
-    else
-      dptr = tmp;
-  }
-  return dptr?dptr-str:-1;
 }
 
 command_t str_to_cmd (char* str)
@@ -393,6 +464,8 @@ command_t str_to_cmd (char* str)
   while (d >= 0)
   {
     if ( d != 0 ){
+    if (get_first_none_space(tmp) - tmp == d ) 
+      if (tmp != NULL && *tmp != '(') return NULL; //ERROR NEED HANDLE
     e[size].data = checked_malloc(sizeof(char) * (strlen(str) + 1));
     strncpy(e[size].data,tmp,d);
     e[size].data[d] = 0;
@@ -410,7 +483,7 @@ command_t str_to_cmd (char* str)
     c_strcpy(tmp, tmp+1);
     len--;
     tmp[len] = 0;
-    if ( (e[size].data[0] != ')') && ( tmp[0] == '&' || tmp[0] == '|')){
+    if ( (e[size].data[0] != ')' && e[size].data[0] != ';' && e[size].data[0] != '(') && ( tmp[0] == '&' || tmp[0] == '|')){
       e[size].data[1] = tmp[0];
       e[size].data[2] = 0;
       c_strcpy(tmp, tmp+1);
@@ -420,7 +493,7 @@ command_t str_to_cmd (char* str)
     size++;
     d = get_special(tmp);
   };
-  if (strlen(tmp) != 0)
+  if (strlen(tmp) != 0 && get_first_none_space(tmp))
   {
     e[size].data = checked_malloc(sizeof(char) * (strlen(str) + 1));
     strcpy(e[size].data,tmp);
@@ -466,8 +539,9 @@ command_t str_to_cmd (char* str)
 	output[o_p] = pop(&s);
 	o_p++;
       }
-      output[o_p - 1]->is_sub = true;
-      pop(&s);
+      //output[o_p - 1]->is_sub = true;
+      output[o_p] = pop(&s);
+      o_p++;
       continue;
     }
 
@@ -496,19 +570,33 @@ command_t str_to_cmd (char* str)
   cmd_init(&cs);
   for (i = 0; i < o_p; i++)
   {
-    if (output[i]->is_op)
+    if (output[i]->is_op && output[i]->data[0] != '(')
     {
       command_t op1, op2;
       op2 = cmd_pop(&cs);
       op1 = cmd_pop(&cs);
+      if (!op1 || !op2) return NULL; //ERROR NEED HANDLE
       cmd = create_cmd(output[i], op1, op2); 
       cmd_push(&cs,cmd);
       continue;
     }
+    if (output[i]->data[0] == '(')
+    {
+      command_t op1;
+      if ((op1 = cmd_pop(&cs)))
+      {
+	cmd = create_cmd(output[i], op1, NULL);
+	cmd_push(&cs,cmd);
+	continue;
+      }
+      else return NULL; // ERROR NEED HANDLE
+    }
     cmd = create_cmd(output[i],NULL,NULL);
     cmd_push(&cs,cmd);
+    if (!cmd) return NULL; // ERROR NEED HANDLE
   }
   command_t rr = cmd_pop(&cs);
+  if (cmd_top(&cs) != NULL) return NULL;
   free_cmd_stack(&cs);
   for (i = 0; i < size; i ++)  //MEMLEAK
     free(e[i].data);
@@ -517,6 +605,20 @@ command_t str_to_cmd (char* str)
   return rr;
 }
 
+void commit_cmd(char* buffer, command_stream_t ct)
+{
+  command_t cmd = str_to_cmd(buffer);
+  if (!cmd) errorHandler("ERROR", 10); // TODO : ERROR MSG HANDLER
+     (ct->m_command)[ct->size] = cmd;
+     ct->size++;
+     if (ct->size >= ct->capacity)
+     {
+       ct->capacity*=2;
+       ct->m_command = checked_grow_alloc(ct->m_command, &(ct->capacity));
+       ct->p_current = ct->m_command;
+     }
+}
+ 
 command_stream_t
 make_command_stream (int (*get_next_byte) (void *),
 		     void *get_next_byte_argument)
@@ -538,7 +640,6 @@ make_command_stream (int (*get_next_byte) (void *),
   int prant = 0;
   char t;
   char *buffer = checked_malloc(size);
-  command_t cmd;
   command_stream_t ct = checked_malloc(sizeof(struct command_stream));
   ct->capacity = 64;
   ct->size=0;
@@ -561,16 +662,8 @@ make_command_stream (int (*get_next_byte) (void *),
 	{
           buffer[count - 1]=0;
           // DEBUG : printf("*%s\n", buffer);
-          count = 0;
-          cmd = str_to_cmd(buffer);
-          (ct->m_command)[ct->size] = cmd;
-          ct->size++;
-          if (ct->size >= ct->capacity)
-          {
-	    ct->capacity*=2;
-	    ct->m_command = checked_grow_alloc(ct->m_command, &(ct->capacity));
-	    ct->p_current = ct->m_command;
-	  }
+          commit_cmd(buffer, ct);
+	  count = 0;
 	  continue;
         }
         else 
@@ -580,7 +673,7 @@ make_command_stream (int (*get_next_byte) (void *),
         }
       }
       if (prant > 0) buffer[count] = ' ';
-      if (prant < 0) error(1,0, "ERROR"); // TODO : ERROR MSG HANDLE
+      if (prant < 0) errorHandler("ERROR", 10); // TODO : ERROR MSG HANDLE
     }
     else
     { 
@@ -598,16 +691,8 @@ make_command_stream (int (*get_next_byte) (void *),
   }while(t>=0 && t != EOF);
   if (count != 0)
   { 
-      if (prant !=  0) error(1,0, "ERROR"); // TODO : ERROR MSG HANDLE
-          cmd = str_to_cmd(buffer);
-          (ct->m_command)[ct->size] = cmd;
-          ct->size++;
-          if (ct->size >= ct->capacity)
-          {
-	    ct->capacity*=2;
-	    ct->m_command = checked_grow_alloc(ct->m_command, &(ct->capacity));
-	    ct->p_current = ct->m_command;
-	  }
+      if (prant !=  0) errorHandler("ERROR", 10); // TODO : ERROR MSG HANDLE
+      commit_cmd(buffer, ct);
   }
   ct->p_current = ct->m_command; 
   
