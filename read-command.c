@@ -356,8 +356,11 @@ command_t create_cmd(struct elements* e, command_t op1, command_t op2)
     r->type = SUBSHELL_COMMAND;
     r->status = -1;
     r->u.subshell_command = op1;
-    r->output = NULL;
-    r->input = NULL;
+    bool b;
+    r->output = get_output(e->data, &b);
+    if (!b) return NULL; // ERROR NEED HANDLE
+    r->input = get_input(e->data, &b);
+    if (!b) return NULL; // ERROR NEED HANDLE
   }
   else if (e->is_op)
   {
@@ -400,7 +403,7 @@ command_t str_to_cmd (char* str)
       if (d[0] == ')')
       {
 	d =  get_special(d + 1);
-	e[size].data = c_strncpy(NULL, tmp, d[0] != 0 ? d - 1 : strlen(tmp) + tmp);
+	e[size].data = c_strncpy(NULL, tmp, d ? d - 1 : strlen(tmp) + tmp);
       }
       else
       {
