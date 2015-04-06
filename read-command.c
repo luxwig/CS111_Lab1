@@ -9,19 +9,23 @@
 #include <error.h>
 #include <stdio.h>
 
-/* FIXME: You may need to add #include directives, macro definitions,
-   static function definitions, etc.  */
-
-/* FIXME: Define the type 'struct command_stream' here.  This should
-   complete the incomplete type declaration in command.h.  */
-
-
+// Error Handler
 void* errorHandler(char* msg, int num)
 {
   error(1, 0, "LINE %d: %s", num, msg);
   return NULL;
 }
 
+// declaration of command_stream
+struct command_stream
+{
+  command_t* m_command;
+  command_t* p_current;
+  size_t size;
+  size_t capacity;
+};
+
+// declaration of elements
 struct elements
 {
   char* data;
@@ -120,6 +124,7 @@ void cmd_init(struct cmd_stack* s)
   s->c = checked_malloc(sizeof(command_t) * 64);
 }
 
+// cstr copy function
 void c_strcpy(char* dest, char* src)
 {
   char* tmp = checked_malloc(sizeof(char) * strlen(src) + 1);
@@ -128,96 +133,6 @@ void c_strcpy(char* dest, char* src)
   strcpy(dest,tmp);
   dest[strlen(tmp)] = 0;
   free(tmp);//MEMLEAK
-}
-
-#ifdef _TEST_OLD
-char* get_first_none_space(char* str)
-{
-  char* p1 = strchr(str, ' ');
-  char* p2 = strchr(str, '\t');
-  if (p1 == NULL) return p2;
-  if (p2 == NULL) return p1;
-  return p1 < p2 ? p1 :p2;
-}
-
-
-char* get_last_none_space(char*str)
-{
-  char* p1 = strrchr(str, ' ');
-  char* p2 = strrchr(str, '\t');
-  if (p1 == NULL)
-  {
-    if (p2 == NULL) return NULL;
-    return p2-1;
-  }
-  if (p2 == NULL) return p1-1;
-  return p1>p2 ? (p1-1) : (p2-1);
-}
-
-void c_strncpy(char* dest, char* src_str, char* src_end)
-{
-  if (src_end < src_str || src_str == NULL || src_end == NULL){
-    free(dest);
-    return NULL;
-  }
-  int size = (src_end-src_str)+1;
-  char* tmp = checked_malloc(sizeof(char) * (size+1));
-  strncpy(tmp, src_str, size);
-  tmp[size] = 0;
-  free(dest);
-  dest = tmp;
-  free(tmp);
-}
-
-char* get_func(char* str)
-{
-  char* func = checked_malloc(sizeof(char) * (strlen(str) + 1));
-  strcpy(func, str);
-  char* r1 = strchr(str,'<');
-  char* r2 = strchr(str,'>');
-  char *p1 = get_first_none_space(str),
-       *p2 = get_last_none_space(str);
-  if (!(p1&&p2)) return NULL;
-  if (r1 || r2)
-  {
-    r1 = r1?r1:r2;
-    strncpy(func, p1, r1-p1);
-    c_strncpy(func, func, get_last_none_space(func));
-    return func;
-  }
-  strncpy(func, p1, p2-p1+1);
-  return func;
-}
-#else
-
-bool is_special(char *str)
-{
-  if (str == NULL) return false;
-  char c = str[0];
-  return (c == '(' || c == '|' || c == '&' || c == ')' || c == ';');
-}
-
-bool is_space(char *str)
-{
-  if (str == NULL) return false;
-  char c = str[0];
-  return (c == ' ' || c == '\t' || c == '\n');
-}
-char* get_first_none_space(char* str)
-{
-  size_t size = strlen(str), i;
-  for (i = 0 ; i < size; i++)
-    if (str[i] != '\t' && str[i] != ' ' && str[i] != '\n') return str + i;
-  return NULL;
-}
-
-
-char* get_last_none_space(char*str)
-{
-  size_t size = strlen(str), i;
-  for (i = size - 1; i > 0; i--)
-    if (str[i] != '\t' && str[i] != ' ' && str[i] != '\n') return str + i;
-  return str;
 }
 
 char* c_strncpy(char* dest, char* src_str, char* src_end)
@@ -234,26 +149,45 @@ char* c_strncpy(char* dest, char* src_str, char* src_end)
   return tmp;
 }
 
-int get_none_p_special(char* str)
+
+// str check function
+bool is_special(char *str)
 {
-  char const d_label[][3] = { "&&", ";", "||", "|" };
-  char *dptr = NULL,
-       *tmp;
-  int i; 
-  for (i = 0; i < 4; i++)
-  {
-    tmp = strstr(str, d_label[i]);
-    if (!tmp) continue;
-    if (dptr)
-      dptr = dptr>tmp?tmp:dptr;
-    else
-      dptr = tmp;
-  }
-  return dptr?dptr-str:-1;
+  if (str == NULL) return false;
+  char c = str[0];
+  return (c == '(' || c == '|' || c == '&' || c == ')' || c == ';');
 }
 
-int get_special(char* str)
+bool is_space(char *str)
 {
+  if (!str) return NULL;
+  if (str == NULL) return false;
+  char c = str[0];
+  return (c == ' ' || c == '\t' || c == '\n');
+}
+
+// get substring
+char* get_first_none_space(char* str)
+{
+  if (!str) return NULL;
+  size_t size = strlen(str), i;
+  for (i = 0 ; i < size; i++)
+    if (str[i] != '\t' && str[i] != ' ' && str[i] != '\n') return str + i;
+  return NULL;
+}
+
+
+char* get_last_none_space(char*str)
+{
+  size_t size = strlen(str), i;
+  for (i = size - 1; i > 0; i--)
+    if (str[i] != '\t' && str[i] != ' ' && str[i] != '\n') return str + i;
+  return str;
+}
+
+char* get_special(char* str) // return ptr points to special char
+{
+  if(!str) return NULL;
   char const d_label[][3] = { "&&", ";", "||", "|", "(", ")" };
   char *dptr = NULL,
        *tmp;
@@ -267,12 +201,32 @@ int get_special(char* str)
     else
       dptr = tmp;
   }
-  return dptr?dptr-str:-1;
+  return dptr?dptr:NULL;
 }
 
+char* get_special_str(char* str) // return new cstr
+{
+  if (!str) return NULL;
+  char* d = checked_malloc(sizeof(char) * 3);
+  if (str[0] == '(' || str[0] == ')' || str[0] == ';') {
+    d[0] = str[0]; d[1] = 0;
+  }
+  else if (str[0] == '|')
+  {
+    d[0] = str[0];
+    d[1] = str[1]=='|' ? '|' : 0;
+    d[2] = 0;
+  }
+  else if (str[0] == '&')
+  {
+    if (str[1] == '&') { d[0] = '&'; d[1] = '&'; d[2] = 0; }
+    else { free(d); return NULL;}
+  }
+  else free(d);
+  return d;
+}
 
-
-
+// get main func, input and output
 char** get_func(char* str)
 {
   char* func = checked_malloc(sizeof(char) * (strlen(str) + 1));
@@ -322,7 +276,7 @@ char** get_func(char* str)
   cp++;
   r[cp] = NULL;
   free(func);
-  if (get_special(t) != -1 || strchr(t,'&') != NULL) return NULL;
+  if (get_special(t) != NULL || strchr(t,'&') != NULL) return NULL;
   return r;
 }
 
@@ -376,15 +330,6 @@ char* get_output(char *str, bool* valid)
   if (valid) *valid = true;
   return NULL;
 }
-#endif
-
-struct command_stream
-{
-  command_t* m_command;
-  command_t* p_current;
-  size_t size;
-  size_t capacity;
-};
 
 int get_precedence(char* op)
 {
@@ -435,19 +380,7 @@ command_t create_cmd(struct elements* e, command_t op1, command_t op2)
     r->output = get_output(e->data, &b);
     if (!b) return NULL; // ERROR NEED HANDLE
   }
-  /*
-  if (e->is_sub)
-    {
-      command_t r1 = r;
-      r = checked_malloc(sizeof(struct command));
-      r->type = SUBSHELL_COMMAND;
-      r->status = -1;
-      r->output = NULL;
-      r->input = NULL;
-      r->u.subshell_command = r1;
-    }
-  */
-  return r;
+ return r;
 }
 
 command_t str_to_cmd (char* str)
@@ -459,50 +392,45 @@ command_t str_to_cmd (char* str)
   tmp[strlen(str)] = 0;
   size_t size = 0;
   struct elements* e = checked_malloc(sizeof(struct elements) * (strlen(str) + 1));
-  int d = get_special(tmp);
-  size_t len = strlen(str);
-  while (d >= 0)
+  char* d = get_special(tmp);
+  while (d)
   {
-    if ( d != 0 ){
-    if (get_first_none_space(tmp) - tmp == d ) 
-      if (tmp != NULL && *tmp != '(') return NULL; //ERROR NEED HANDLE
-    e[size].data = checked_malloc(sizeof(char) * (strlen(str) + 1));
-    strncpy(e[size].data,tmp,d);
-    e[size].data[d] = 0;
-    e[size].is_op = false;
-    e[size].is_sub = false;
-    size++;
-    c_strcpy(tmp, tmp+d);
-    len-=d;
-    tmp[len] = 0;}
-    e[size].data = checked_malloc(sizeof(char) * 3);
-    e[size].data[0] = tmp[0];
-    e[size].data[1] = 0;
-    e[size].is_op = true;
-    e[size].is_sub = false;
-    c_strcpy(tmp, tmp+1);
-    len--;
-    tmp[len] = 0;
-    if ( (e[size].data[0] != ')' && e[size].data[0] != ';' && e[size].data[0] != '(') && ( tmp[0] == '&' || tmp[0] == '|')){
-      e[size].data[1] = tmp[0];
-      e[size].data[2] = 0;
-      c_strcpy(tmp, tmp+1);
-      len--;
-      tmp[len] = 0;
+    if (d == get_first_none_space(tmp))
+    {
+      if (d[0] == ')')
+      {
+	d =  get_special(d + 1);
+	e[size].data = c_strncpy(NULL, tmp, d[0] != 0 ? d - 1 : strlen(tmp) + tmp);
+      }
+      else
+      {
+        e[size].data = get_special_str(d);
+        d = d + strlen(e[size].data);
+      }
+      e[size].is_op = true;
+      e[size].is_sub = false;
     }
-    size++;
+    else
+    {
+      e[size].data = c_strncpy(NULL, tmp, d - 1);
+      e[size].is_op = false;
+      e[size].is_sub = false;
+    }
+    if (!e[size].data) return NULL;
+    tmp = c_strncpy(tmp, d, get_last_none_space(tmp));
     d = get_special(tmp);
-  };
-  if (strlen(tmp) != 0 && get_first_none_space(tmp))
-  {
-    e[size].data = checked_malloc(sizeof(char) * (strlen(str) + 1));
-    strcpy(e[size].data,tmp);
-    e[size].data[strlen(tmp)] = 0;
-    e[size].is_op = false;
     size++;
   }
-
+  if (get_first_none_space(tmp))
+  {
+      e[size].data = c_strncpy(NULL, tmp, get_last_none_space(tmp));
+      e[size].is_op = false;
+      e[size].is_sub = false;
+      size++;
+  } 
+  
   free(tmp); // MEMLEAK
+  
   /* DEBUG : 
   size_t i;
   for (i = 0; i < size; i++)
@@ -512,6 +440,7 @@ command_t str_to_cmd (char* str)
   printf("\n");
   error(1,0,"dd");
   */
+  
   size_t o_p = 0;
   struct elements** output = checked_malloc(sizeof(struct elements*) * size); 
   size_t i = 0;
@@ -539,8 +468,8 @@ command_t str_to_cmd (char* str)
 	output[o_p] = pop(&s);
 	o_p++;
       }
-      //output[o_p - 1]->is_sub = true;
       output[o_p] = pop(&s);
+      strcat(output[o_p]->data, e[i].data + 1);
       o_p++;
       continue;
     }
