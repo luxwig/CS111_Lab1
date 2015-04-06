@@ -276,7 +276,7 @@ char** get_func(char* str)
   cp++;
   r[cp] = NULL;
   free(func);
-  if (get_special(t) != NULL || strchr(t,'&') != NULL) return NULL;
+  if (strchr(t,'&') != NULL) return NULL;
   return r;
 }
 
@@ -357,6 +357,8 @@ command_t create_cmd(struct elements* e, command_t op1, command_t op2)
     r->status = -1;
     r->u.subshell_command = op1;
     bool b;
+    char** t = get_func(e->data);
+    if (strlen(t[0]) != 1 || t[1] != NULL) return NULL;
     r->output = get_output(e->data, &b);
     if (!b) return NULL; // ERROR NEED HANDLE
     r->input = get_input(e->data, &b);
