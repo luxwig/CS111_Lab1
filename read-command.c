@@ -153,7 +153,7 @@ char* c_strncpy(char* dest, char* src_str, char* src_end)
 size_t* cut_int(size_t* src, char* src_str, char* src_end, char* ref)
 {
   int size = (src_end - src_str) + 1;
-  size_t* tmp = checked_malloc(sizeof(char) * (size+1));
+  size_t* tmp = checked_malloc(sizeof(size_t) * (size+1));
   int i = 0;
   for (i = src_str-ref; i <= src_end-ref; i++)
   {
@@ -438,8 +438,8 @@ command_t str_to_cmd (char* str, size_t* line, size_t* valid)
       e[size].line = line[0];
     }
     if (!e[size].data) return NULL;
-    tmp = c_strncpy(tmp, d, get_last_none_space(tmp));
     line  = cut_int(line, d, get_last_none_space(tmp), tmp);
+    tmp = c_strncpy(tmp, d, get_last_none_space(tmp));
     d = get_special(tmp);
     size++;
   }
