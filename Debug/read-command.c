@@ -31,7 +31,6 @@ struct elements
   char* data;
   bool is_op;
   bool is_sub;
-  size_t line;
 };
 
 //stack for op
@@ -150,18 +149,7 @@ char* c_strncpy(char* dest, char* src_str, char* src_end)
   return tmp;
 }
 
-size_t* cut_int(size_t* src, char* src_str, char* src_end, char* ref)
-{
-  int size = (src_end - src_str) + 1;
-  size_t* tmp = checked_malloc(sizeof(char) * (size+1));
-  int i = 0;
-  for (i = src_str-ref; i <= src_end-ref; i++)
-  {
-    tmp[i - (src_str-ref)] = src[i];
-  }
-  free(src);
-  return tmp;
-}
+
 // str check function
 bool is_special(char *str)
 {
@@ -370,7 +358,7 @@ command_t create_cmd(struct elements* e, command_t op1, command_t op2)
     r->u.subshell_command = op1;
     bool b;
     char** t = get_func(e->data);
-    if (t == NULL|| strlen(t[0]) != 1 || t[1] != NULL) return NULL;
+    if (strlen(t[0]) != 1 || t[1] != NULL) return NULL;
     r->output = get_output(e->data, &b);
     if (!b) return NULL; // ERROR NEED HANDLE
     r->input = get_input(e->data, &b);
@@ -400,7 +388,7 @@ command_t create_cmd(struct elements* e, command_t op1, command_t op2)
  return r;
 }
 
-command_t str_to_cmd (char* str, size_t* line, size_t* valid)
+command_t str_to_cmd (char* str)
 {
   struct stack s;
   init(&s);
@@ -418,13 +406,10 @@ command_t str_to_cmd (char* str, size_t* line, size_t* valid)
       {
 	d =  get_special(d + 1);
 	e[size].data = c_strncpy(NULL, tmp, d ? d - 1 : strlen(tmp) + tmp);
-        if(d!=NULL) e[size].line = line[d-1-tmp];
-	else e[size].line = line[strlen(tmp)];
       }
       else
       {
         e[size].data = get_special_str(d);
-        e[size].line = line[d - tmp];
         d = d + strlen(e[size].data);
       }
       e[size].is_op = true;
@@ -435,11 +420,9 @@ command_t str_to_cmd (char* str, size_t* line, size_t* valid)
       e[size].data = c_strncpy(NULL, tmp, d - 1);
       e[size].is_op = false;
       e[size].is_sub = false;
-      e[size].line = line[0];
     }
     if (!e[size].data) return NULL;
     tmp = c_strncpy(tmp, d, get_last_none_space(tmp));
-    line  = cut_int(line, d, get_last_none_space(tmp), tmp);
     d = get_special(tmp);
     size++;
   }
@@ -448,7 +431,6 @@ command_t str_to_cmd (char* str, size_t* line, size_t* valid)
       e[size].data = c_strncpy(NULL, tmp, get_last_none_space(tmp));
       e[size].is_op = false;
       e[size].is_sub = false;
-      e[size].line = line[get_first_none_space(tmp) - tmp];
       size++;
   } 
   
@@ -527,11 +509,7 @@ command_t str_to_cmd (char* str, size_t* line, size_t* valid)
       command_t op1, op2;
       op2 = cmd_pop(&cs);
       op1 = cmd_pop(&cs);
-      if (!op1 || !op2) 
-      {
-	*valid = output[i]->line;
-	return NULL; //ERROR NEED HANDLE
-      }
+      if (!op1 || !op2) return NULL; //ERROR NEED HANDLE
       cmd = create_cmd(output[i], op1, op2); 
       cmd_push(&cs,cmd);
       continue;
@@ -542,30 +520,17 @@ command_t str_to_cmd (char* str, size_t* line, size_t* valid)
       if ((op1 = cmd_pop(&cs)))
       {
 	cmd = create_cmd(output[i], op1, NULL);
-	if (!cmd) {*valid = output[i]->line; return NULL;}
 	cmd_push(&cs,cmd);
 	continue;
       }
-      else 
-      {
-	*valid = output[i]->line;
-	return NULL; // ERROR NEED HANDLE
-      }
+      else return NULL; // ERROR NEED HANDLE
     }
     cmd = create_cmd(output[i],NULL,NULL);
     cmd_push(&cs,cmd);
-    if (!cmd) 
-    {
-      *valid = output[i]->line;
-      return NULL; // ERROR NEED HANDLE
-    }
+    if (!cmd) return NULL; // ERROR NEED HANDLE
   }
   command_t rr = cmd_pop(&cs);
-  if (cmd_top(&cs) != NULL) 
-  {
-    *valid = output[i]->line;
-    return NULL;
-  }
+  if (cmd_top(&cs) != NULL) return NULL;
   free_cmd_stack(&cs);
   for (i = 0; i < size; i ++)  //MEMLEAK
     free(e[i].data);
@@ -574,11 +539,10 @@ command_t str_to_cmd (char* str, size_t* line, size_t* valid)
   return rr;
 }
 
-void commit_cmd(char* buffer, size_t* line, command_stream_t ct)
+void commit_cmd(char* buffer, command_stream_t ct)
 {
-  size_t errorLine = 0;
-  command_t cmd = str_to_cmd(buffer, line, &errorLine);
-  if (!cmd) errorHandler("ERROR", errorLine); // TODO : ERROR MSG HANDLER
+  command_t cmd = str_to_cmd(buffer);
+  if (!cmd) errorHandler("ERROR", 10); // TODO : ERROR MSG HANDLER
      (ct->m_command)[ct->size] = cmd;
      ct->size++;
      if (ct->size >= ct->capacity)
@@ -606,12 +570,10 @@ make_command_stream (int (*get_next_byte) (void *),
 */
   void *fm = get_next_byte_argument;
   size_t size = 1024,
-	 count = 0,
-	 ln = 0;
+	 count = 0;
   int prant = 0;
   char t;
   char *buffer = checked_malloc(size);
-  size_t *line = checked_malloc(sizeof(size_t) * size);
   command_stream_t ct = checked_malloc(sizeof(struct command_stream));
   ct->capacity = 64;
   ct->size=0;
@@ -621,65 +583,50 @@ make_command_stream (int (*get_next_byte) (void *),
     t = get_next_byte(fm);
     if (t == EOF || t < 0 ) break;
     if (t == '#' && (count == 0 || is_space(&buffer[count-1])))
-    {
-      ln++;
       while ((t != EOF && t >= 0) && t != '\n')
 	t = get_next_byte(fm);
-    }
     if (t == '\n')
     {
       if (prant == 0)
       {
-	if (count == 0) {ln++; continue;}
+	if (count == 0) continue;	
 	if (count > 0  && 
 	    !is_special(get_last_none_space(buffer)) &&
 	    buffer[count-1] == '\n') 
 	{
           buffer[count - 1]=0;
           // DEBUG : printf("*%s\n", buffer);
-          commit_cmd(buffer, line, ct);
+          commit_cmd(buffer, ct);
 	  count = 0;
-	  ln++;
 	  continue;
         }
         else 
         {
-	  if ( is_special(get_last_none_space(buffer)) ) buffer[count] = ' '; 
+	  if ( is_special(get_last_none_space(buffer)) ) buffer[count] = ' ';
 	  else buffer[count] = '\n'; 
-	  line[count] = ln;
         }
       }
-      if (prant > 0) {buffer[count] = ' '; line[count] = ln;}
+      if (prant > 0) buffer[count] = ' ';
       if (prant < 0) errorHandler("ERROR", 10); // TODO : ERROR MSG HANDLE
-      ln++;
     }
     else
     { 
       if (count > 0 && buffer[count-1] == '\n')
 	buffer[count-1] = ';';
       buffer[count] = t;
-      line[count] = ln;
     }
-
     if (t == '(') prant++;
     if (t == ')') prant--;
-    
-    count++; 
-    if (count >= size) 
-    {
+    if (++count >= size) {
       size*=2;
       buffer = checked_grow_alloc(buffer, &size);
-      size_t s = size * 4;
-      line = checked_grow_alloc(line, &s);
     }
-    
     buffer[count] = 0;
-  
   }while(t>=0 && t != EOF);
   if (count != 0)
   { 
-      if (prant !=  0) errorHandler("ERROR", ln-1); // TODO : ERROR MSG HANDLE
-      commit_cmd(buffer, line, ct);
+      if (prant !=  0) errorHandler("ERROR", 10); // TODO : ERROR MSG HANDLE
+      commit_cmd(buffer, ct);
   }
   ct->p_current = ct->m_command; 
   
