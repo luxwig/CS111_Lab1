@@ -8,6 +8,7 @@
 //#include <error.h>
 #include <stdio.h>
 
+//
 // declaration of command_stream
 struct command_stream
 {
