@@ -8,7 +8,12 @@
 //#include <error.h>
 #include <stdio.h>
 
-//
+//error hanlde
+void errorHandle(size_t line)
+{
+  fprintf(stderr, "Incorrect syntax: line %zu \n", line);
+  exit(EXIT_FAILURE);
+}
 // declaration of command_stream
 struct command_stream
 {
@@ -640,8 +645,7 @@ command_t str_to_cmd(char* str, size_t line)
   bool detect = check(e, size);
   if (detect == false)
     {
-      fprintf(stderr, "Incorrect syntax: line %zu \n", line);
-      exit(0);
+      errorHandle(line);
     }
 
   //free memory
@@ -763,8 +767,7 @@ void commit_cmd(char* buffer, size_t line, command_stream_t ct)
   command_t cmd = str_to_cmd(buffer, line);
   if (!cmd)
     {
-      fprintf(stderr, "Incorrect syntax: line %zu \n", line);
-      exit(0);
+      errorHandle(line);
     }
   (ct->m_command)[ct->size] = cmd;
   ct->size++;
@@ -812,8 +815,12 @@ make_command_stream(int(*get_next_byte) (void *),
 	if (t == EOF && get_last_none_space(buffer)[0] == ';')
 	  {
 	    *get_last_none_space(buffer) = ' ';
-	    break;
 	  }
+	break;
+      }
+    if (is_ordinary(t) == 0 && is_nonordi(t) == 0 && t != EOF)
+      {
+	errorHandle(ln);
       }
     if (t == ')'&& get_last_none_space(buffer)[0] == ';')
       {
@@ -824,8 +831,7 @@ make_command_stream(int(*get_next_byte) (void *),
       {
 	if (count > 0 && is_ordinary(buffer[count - 1]) == 1)
 	  {
-	    fprintf(stderr, "Incorrect syntax: line %zu \n", ln);
-	    exit(0);
+	    errorHandle(ln);
 	  }
 	else
 	  {
@@ -868,8 +874,7 @@ make_command_stream(int(*get_next_byte) (void *),
 	// if has previously close prant, error
 	if (prant < 0)
 	  {
-	    fprintf(stderr, "Incorrect syntax: line %zu \n", ln);
-	    exit(0);
+	    errorHandle(ln);
 	  }
 	ln++;
       }
@@ -882,11 +887,6 @@ make_command_stream(int(*get_next_byte) (void *),
 	//otherwise just save the char
 	buffer[count] = t;
 	//check if it is token that can be accepted
-	if (is_ordinary(t) == 0 && is_nonordi(t) == 0 && t != EOF)
-	  {
-	    fprintf(stderr, "Incorrect syntax: line %zu \n", ln);
-	    exit(0);
-	  }
 	if (t == '(') prant++;
 	if (t == ')') prant--;
       }
@@ -905,7 +905,9 @@ make_command_stream(int(*get_next_byte) (void *),
   if (count != 0)
     {
       if (prant != 0)
-	fprintf(stderr, "Incorrect syntax: line %zu \n", ln);
+	{
+	  errorHandle(ln);
+	}
       commit_cmd(buffer, ln, ct);
     }
   ct->p_current = ct->m_command;
