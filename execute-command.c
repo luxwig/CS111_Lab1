@@ -14,11 +14,6 @@
 #include <error.h>
 
 
-//#include <error.h>
-
-/* FIXME: You may need to add #include directives, macro definitions,
-   static function definitions, etc.  */
-
 void exe_cmd(command_t c);
 
 int
@@ -30,12 +25,14 @@ command_status(command_t c)
 void exe_simple_cmd(command_t c)
 {
   int pid = fork();
+  
   //cannot fork
   if (pid < 0)
     {
-      error(1, 0, "forking error");
-      exit(127);
+      error(127, 0, "Forking error");
+      //exit(127);
     }
+  
   //child process
   else if (pid == 0)
     {
@@ -44,13 +41,13 @@ void exe_simple_cmd(command_t c)
 	  int fd = open(c->input, O_RDONLY);
 	  if (fd < 0)
 	    {
-	      error(1, 0, "cannot open file");
+	      error(1, 0, "Cannot open file"); /* FIXME : RETURN 127 or 1 */ 
 	      exit(127);
 	    }
 	  int redi = dup2(fd, 0);
 	  if (redi < 0)
 	    {
-	      error(1, 0, "redirect input error");
+	      error(1, 0, "Redirect input error"); /* FIXME : RETURN 127 or 1 */ 
 	      exit(127);
 	    }
 	  close(fd);
@@ -60,19 +57,19 @@ void exe_simple_cmd(command_t c)
 	  int fd = open(c->output, O_CREAT | O_TRUNC | O_WRONLY, 0646);
 	  if (fd < 0)
 	    {
-	      error(1, 0, "cannot open file");
+	      error(1, 0, "Cannot open file"); /* FIXME : RETURN 127 or 1 */ 
 	      exit(127);
 	    }
 	  int redi = dup2(fd, 1);
 	  if (redi < 0)
 	    {
-	      error(1, 0, "redirect output error");
+	      error(1, 0, "Redirect output error"); /* FIXME : RETURN 127 or 1 */ 
 	      exit(127);
 	    }
 	  close(fd);
 	}
       execvp(c->u.word[0], c->u.word);
-      error(1, 0, "this should not happen");
+      error(1, 0, "Command does not found"); /* FIXME : RETURN 127 or 1 */ 
       exit(127);
     }
   //parent process
@@ -81,7 +78,7 @@ void exe_simple_cmd(command_t c)
       int status;
       if (waitpid(pid, &status, 0) < 0)
 	{
-	  error(1, 0, "waitpid failed");
+	  error(1, 0, "waitpid failed"); /* FIXME : RETURN 127 or 1 */ 
 	  exit(127);
 	}
       else
@@ -102,7 +99,7 @@ void exe_and_cmd(command_t c)
       exe_cmd(c->u.command[1]);
       c->status = c->u.command[1]->status;
     }
-  //if ot success, do not have to do the right part
+  //if not success, do not have to do the right part
   else
     {
       c->status = c->u.command[0]->status;
@@ -159,7 +156,7 @@ void exe_pipe_cmd(command_t c)
 	  close(fd[1]);
 	  int status;
 	  int returnpid = waitpid(-1, &status, 0);
-	  if (returnpid == secondpid)
+	  if (returnpid == secondpid) /* FIXME : Status need to be clear*/ 
 	    {
 	      waitpid(firstpid, &status, 0);
 	      c->status = c->u.command[0]->status;
@@ -182,6 +179,7 @@ void exe_sub_cmd(command_t c)
 
 void exe_cmd(command_t c)
 {
+  if (!c) error(1, 0, "Command cannot exec");
   switch (c->type)
     {
     case SIMPLE_COMMAND:
@@ -208,7 +206,7 @@ void exe_cmd(command_t c)
 }
 
 void
-execute_command(command_t c, bool time_travel)
+execute_command (command_t c, bool time_travel)
 {
   if (time_travel == 0)
     exe_cmd(c);
