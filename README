@@ -1,6 +1,4 @@
-*******************************************
-* COMSCI 111 Operating Systems Principles
-*******************************************
+# COMSCI 111 Operating Systems Principles
 
 Name: Jing Wu
 UID : 904-268-934
@@ -8,21 +6,18 @@ UID : 904-268-934
 Name: Sichen Zhao
 UID : 404-294-926
 
-**************
-* SUMMARY
-**************
+## SUMMARY
 
-This program reads from a bash commands file and print the commands by  constructing a command tree. No major bugs are detected at this point. However, minor bugs may exsit.
+* This program reads from a bash commands file and print the commands by constructing a command tree. 
+* This program run the commands as bash did
 
-**************
-* LIMITATION
-**************
+No major bugs are detected at this point. However, minor bugs may exsit.
+
+## LIMITATION
 
 The command grammer is only limited to the subsets that is given in the spec. NO additional improvment is implemented.
 
-**************
-* FEATURES
-**************
+## FEATURES
 
 The program achieved the goal as it stated in spec. No special feature is added.
 
