@@ -62,6 +62,7 @@ void exe_simple_cmd(command_t c)
   char str[] = "exec";
   if (strcmp(c->u.word[0], str) == 0)
     {
+	  exe_redi_cmd(c);
       execvp(c->u.word[1], &(c->u.word[1]));
       error(127, 0, "Command does not found");
     }
