@@ -1,1 +1,1 @@
-exec ls
+echo f || (cat tst | sort)>b

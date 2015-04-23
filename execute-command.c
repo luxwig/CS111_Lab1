@@ -12,7 +12,7 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <error.h>
-
+#include <string.h>
 
 void exe_cmd(command_t c);
 
@@ -22,69 +22,79 @@ command_status(command_t c)
   return c->status;
 }
 
+void exe_redi_cmd(command_t c)
+{
+  if (c->input != NULL)
+    {
+      int fd = open(c->input, O_RDONLY);
+      if (fd < 0)
+	{
+	  error(1, 0, "Cannot open file");
+	}
+      int redi = dup2(fd, 0);
+      if (redi < 0)
+	{
+	  error(127, 0, "Redirect input error");
+	}
+      close(fd);
+    }
+  if (c->output != NULL)
+    {
+      int fd = open(c->output, O_CREAT | O_TRUNC | O_WRONLY, 0646);
+      if (fd < 0)
+	{
+	  error(1, 0, "Cannot open file");
+	}
+      int redi = dup2(fd, 1);
+      if (redi < 0)
+	{
+	  error(127, 0, "Redirect output error");
+	}
+      close(fd);
+    }
+}
+
+
+//deal with exec command, but not exit the whole process and terminate the shell
+//not sure if need to be fixed
 void exe_simple_cmd(command_t c)
 {
-  int pid = fork();
-  
-  //cannot fork
-  if (pid < 0)
+  char str[] = "exec";
+  if (strcmp(c->u.word[0], str) == 0)
     {
-      error(127, 0, "Forking error");
-      //exit(127);
+      execvp(c->u.word[1], &(c->u.word[1]));
+      error(127, 0, "Command does not found");
     }
-  
-  //child process
-  else if (pid == 0)
-    {
-      if (c->input != NULL)
-	{
-	  int fd = open(c->input, O_RDONLY);
-	  if (fd < 0)
-	    {
-	      error(1, 0, "Cannot open file"); /* FIXME : RETURN 127 or 1 */ 
-	      exit(127);
-	    }
-	  int redi = dup2(fd, 0);
-	  if (redi < 0)
-	    {
-	      error(1, 0, "Redirect input error"); /* FIXME : RETURN 127 or 1 */ 
-	      exit(127);
-	    }
-	  close(fd);
-	}
-      if (c->output != NULL)
-	{
-	  int fd = open(c->output, O_CREAT | O_TRUNC | O_WRONLY, 0646);
-	  if (fd < 0)
-	    {
-	      error(1, 0, "Cannot open file"); /* FIXME : RETURN 127 or 1 */ 
-	      exit(127);
-	    }
-	  int redi = dup2(fd, 1);
-	  if (redi < 0)
-	    {
-	      error(1, 0, "Redirect output error"); /* FIXME : RETURN 127 or 1 */ 
-	      exit(127);
-	    }
-	  close(fd);
-	}
-      execvp(c->u.word[0], c->u.word);
-      error(1, 0, "Command does not found"); /* FIXME : RETURN 127 or 1 */ 
-      exit(127);
-    }
-  //parent process
   else
     {
-      int status;
-      if (waitpid(pid, &status, 0) < 0)
+      int pid = fork();
+
+      //cannot fork
+      if (pid < 0)
 	{
-	  error(1, 0, "waitpid failed"); /* FIXME : RETURN 127 or 1 */ 
-	  exit(127);
+	  error(127, 0, "Forking error");
 	}
+
+      //child process
+      else if (pid == 0)
+	{
+	  exe_redi_cmd(c);
+	  execvp(c->u.word[0], c->u.word);
+	  error(127, 0, "Command does not found");
+	}
+      //parent process
       else
 	{
-	  int exitstatus = WEXITSTATUS(status);
-	  c->status = exitstatus;
+	  int status;
+	  if (waitpid(pid, &status, 0) < 0)
+	    {
+	      error(127, 0, "waitpid failed");
+	    }
+	  else
+	    {
+	      int exitstatus = WEXITSTATUS(status);
+	      c->status = exitstatus;
+	    }
 	}
     }
 }
@@ -134,38 +144,55 @@ void exe_pipe_cmd(command_t c)
 {
   int fd[2];
   pipe(fd);
-  int firstpid = fork();
+  pid_t firstpid = fork();
   if (firstpid == 0)
     {
-      close(fd[1]);
-      dup2(fd[0], 0);
-      exe_cmd(c->u.command[1]);
+      close(fd[0]);
+      dup2(fd[1], 1);
+      exe_cmd(c->u.command[0]);
+      exit(c->u.command[0]->status);
     }
+  else if (firstpid < 0) 
+    error (127,0,"Forking error");
   else
     {
-      int secondpid = fork();
+      pid_t secondpid = fork();
       if (secondpid == 0)
 	{
-	  close(fd[0]);
-	  dup2(fd[1], 1);
-	  exe_cmd(c->u.command[0]);
+	  close(fd[1]);
+	  dup2(fd[0], 0);
+	  exe_cmd(c->u.command[1]);
+	  exit(c->u.command[1]->status);
 	}
+      else if (secondpid < 0)
+	error(127,0,"Forking error");
       else
 	{
 	  close(fd[0]);
 	  close(fd[1]);
-	  int status;
-	  int returnpid = waitpid(-1, &status, 0);
-	  if (returnpid == secondpid) /* FIXME : Status need to be clear*/ 
-	    {
-	      waitpid(firstpid, &status, 0);
-	      c->status = c->u.command[0]->status;
-	    }
+	  int f_status;
+	  int s_status;
+	  pid_t returnpid = waitpid(-1, &f_status, 0);
 	  if (returnpid == firstpid)
 	    {
-	      waitpid(secondpid, &status, 0);
+	      //set LHS exit status
+	      c->u.command[0]->status = WEXITSTATUS(f_status);
+	      //set RHS exit status and pipe cmd exit status
+	      waitpid(secondpid, &s_status, 0);
+	      c->u.command[1]->status = WEXITSTATUS(s_status);
 	      c->status = c->u.command[1]->status;
 	    }
+	  else if (returnpid == secondpid)
+	    {
+	      //set RHS exit status and pipe cmd exit status
+	      c->u.command[1]->status = WEXITSTATUS(f_status);
+	      c->status = c->u.command[1]->status;
+	      //set LHS exit status
+	      waitpid(firstpid, &s_status, 0);
+	      c->u.command[0]->status = WEXITSTATUS(s_status);
+	    }
+	  else
+	    error(127, 0, "waitpid error");
 	}
     }
 }
@@ -173,6 +200,7 @@ void exe_pipe_cmd(command_t c)
 
 void exe_sub_cmd(command_t c)
 {
+  exe_redi_cmd(c);
   exe_cmd(c->u.subshell_command);
   c->status = c->u.subshell_command->status;
 }
