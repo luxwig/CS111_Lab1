@@ -200,9 +200,35 @@ void exe_pipe_cmd(command_t c)
 
 void exe_sub_cmd(command_t c)
 {
-  exe_redi_cmd(c);
-  exe_cmd(c->u.subshell_command);
-  c->status = c->u.subshell_command->status;
+  int pid = fork();
+
+  //cannot fork
+  if (pid < 0)
+    {
+      error(127, 0, "Forking error");
+    }
+
+  //child process
+  else if (pid == 0)
+    {
+      exe_redi_cmd(c);
+      exe_cmd(c->u.subshell_command);
+      exit(c->u.subshell_command->status);
+    }
+  //parent process
+  else
+    {
+      int status;
+      if (waitpid(pid, &status, 0) < 0)
+	{
+	  error(127, 0, "waitpid failed");
+	}
+      else
+	{
+	  int exitstatus = WEXITSTATUS(status);
+	  c->status = exitstatus;
+	}
+    }
 }
 
 void exe_cmd(command_t c)
