@@ -1,1 +1,1 @@
-asdkjsald
+(cat < main.c)>tttt
