@@ -1,1 +1,1 @@
-echo f || (cat tst | sort)>b
+asdkjsald
