@@ -257,10 +257,8 @@ void exe_cmd(command_t c)
 	}
 }
 
-
 struct wlist* cmd_parse_output(command_t c);
 struct rlist* cmd_parse_input(command_t c);
-
 struct wlist* simple_cmd_parse_output(command_t c)
 {
 	struct wlist* t = NULL;
@@ -372,28 +370,38 @@ struct rlist* bi_cmd_parse_input(command_t c)
 
 struct wlist* cmd_parse_output(command_t c)
 {
+  struct wlist* t;
 	switch (c->type)
 	{
 	case SIMPLE_COMMAND:
-		return simple_cmd_parse_output(c);
+		t = simple_cmd_parse_output(c);
+		break;
 	case SUBSHELL_COMMAND:
-		return sub_cmd_parse_output(c);
+		t = sub_cmd_parse_output(c);
+		break;
 	default:
-		return bi_cmd_parse_output(c);
+		t = bi_cmd_parse_output(c);
+		break;
 	}
+	return t;
 }
 
 struct rlist* cmd_parse_input(command_t c)
 {
+  struct rlist* t;
 	switch (c->type)
 	{
 	case SIMPLE_COMMAND:
-		return simple_cmd_parse_input(c);
+		t = simple_cmd_parse_input(c);
+		break;
 	case SUBSHELL_COMMAND:
-		return sub_cmd_parse_input(c);
+		t = sub_cmd_parse_input(c);
+		break;
 	default:
-		return bi_cmd_parse_input(c);
+		t = bi_cmd_parse_input(c);
+		break;
 	}
+	return t;
 }
 
 
@@ -404,54 +412,74 @@ rwnode* create_rwnode(command_t c)
 	t->readlist = cmd_parse_input(c);
 	t->writelist = cmd_parse_output(c);
 	//create node to store the root node of each cmd tree
-	t->n.cmd->input = c->input;
-	t->n.cmd->output = c->output;
-	t->n.cmd->status = c->status;
-	t->n.cmd->type = c->type;
-	t->n.cmd->u = c->u;
+	t->cmd = c;
 	return t;
 }
 
-#ifndef _DEBUG
-bool check_RAW(const rwnode* r, const rwnode* w)
+bool check_RAW(struct wlist* t1, struct rlist* t2)
 {
-	struct wlist* tmp = w;
-	while (tmp != NULL)
+  struct wlist* w = t1;
+  struct rlist* r = t2;
+  while (r != NULL)
+    {
+      while (w != NULL)
 	{
-		if (strcmp(tmp, r) == 0)
-			return false;
-		tmp = tmp->next;
+	  if (strcmp((w->content),(r->content)) == 0)
+	    return false;
+	  w = w->next;
 	}
+      r = r->next;
+    }
+  return true;
+}
+
+bool check_WAW(struct wlist* t1, struct wlist* t2)
+{
+  struct wlist* w1 = t1;
+  struct wlist* w2 = t2;
+  while (w1 != NULL)
+    {
+      while (w2 != NULL)
+	{
+	  if (strcmp((w1->content),(w2->content)))
+	    return false;
+	  w2 = w2->next;
+	}
+      w1 = w1->next;
+    }
+  return true;
+}
+
+bool check_WAR(struct rlist* t1,struct wlist* t2)
+{
+  struct rlist* r = t1;
+  struct wlist* w = t2;
+  while (r != NULL)
+    {
+      while (w != NULL)
+	{
+	  if (strcmp((w->content),(r->content)) == 0)
+	    return false;
+	  w = w->next;
+	}
+      r = r->next;
+    }
+  return true;
+
 }
 
 bool check_dependency(const rwnode*t1, const rwnode*t2)
 {
-	struct rlist* r1 = cmd_parse_input(t1);
-	struct wlist* w1 = cmd_parse_output(t1);
-	struct rlist* r2 = cmd_parse_input(t2);
-	struct wlist* w2 = cmd_parse_output(t2);
-	check_RAW(r2, w1);
+  struct rlist* r1 = cmd_parse_input(t1->cmd);
+  struct wlist* w1 = cmd_parse_output(t1->cmd);
+  struct rlist* r2 = cmd_parse_input(t2->cmd);
+  struct wlist* w2 = cmd_parse_output(t2->cmd);
+  if (!check_RAW(w1, r2)) return false;
+  if (!check_WAW(w1, w2)) return false;
+  if (!check_WAR(r1, w2)) return false;
+  return true;
 }
-#else
-bool check_dependency(const rwnode*t1, const rwnode*t2)
-{
-  UNUSED(t1);UNUSED(t2);
-  return false;
-}
-#endif
 
-/*
-void create_graph(command_stream_t s)
-{
-	command_t c;
-	while ((c = read_command_stream(s)))
-	{
-		rwnode* t = create_rwnode(c);
-
-	}
-
-}
-*/
 
 void
 execute_command(command_t c, bool time_travel)
@@ -462,6 +490,4 @@ execute_command(command_t c, bool time_travel)
 	  	UNUSED(n);
 		exe_cmd(c);
 	}
-//	else
-//		createGraph(c);
 }
