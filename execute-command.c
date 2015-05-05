@@ -15,6 +15,7 @@
 #include <error.h>
 #include <string.h>
 
+/*
 #ifdef _DEBUG
 #include <stdio.h>
 
@@ -55,6 +56,7 @@ void printdep(depGraph* g)
   printf("\n");
 }
 #endif
+*/
 
 void exe_cmd(command_t c);
 
@@ -595,14 +597,16 @@ depGraph* createGraph(command_stream_t s)
 		  ret->ndep[ndep_c] = NULL;
 		}
 		gNode[count + 1] = NULL;
+		/*
 #ifdef _DEBUG
 		printExam(gNode[count]);
-#endif
+		#endif*/
 		count++;
 	}
+	/*
 #ifdef _DEBUG
 	printdep(ret);
-#endif
+	#endif*/
         return ret;
 }
 
@@ -611,16 +615,16 @@ int executeNoDep(graphNode** c)
   int i = 0;
   while (c[i] != NULL)
     {
-      pid_t pid = fork();
+       pid_t pid = fork();
       if (pid == 0)
-	{
+      {
 	  execute_command(c[i]->cmdNode->cmd, 1);
 	  exit(c[i]->cmdNode->cmd->status);
-	}
+      }
       else
-	{
+      {
 	  c[i]->pid = pid;
-	}
+      }
       i++;
     }
   return 1;
@@ -634,20 +638,26 @@ int executeDep(graphNode** c)
       int j = 0;
       graphNode* dep = c[i];
       graphNode* prev;
+     loop_label:
+      while ((prev = dep->before[j])!= NULL)
+	{
+	  if (prev->pid == -1)
+	    goto loop_label;
+	  else j++;
+	}
+      
+      j = 0;
+      int status;
       while ((prev = dep->before[j]) != NULL)
 	{
-	  int status;
-	  if (waitpid(prev->pid, &status, 0) < 0)
-	    {
-	      return 0;
-	    }
+	  waitpid(prev->pid, &status, 0);
 	  j++;
 	}
       pid_t pid = fork();
       if (pid == 0)
 	{
 	  execute_command(dep->cmdNode->cmd, 1);
-	  exit(dep->cmdNode->cmd->status);
+	  exit(c[i]->cmdNode->cmd->status);
 	}
       else
 	dep->pid = pid;
@@ -660,6 +670,22 @@ int executeGraph(depGraph* t)
 {
   int i = executeNoDep(t->ndep);
   int j = executeDep(t->dep);
+  int a;
+  int status;
+  a = 0;
+  while (t->ndep[a] != NULL)
+    {
+      if (t->ndep[a]->pid > 0)
+	waitpid(t->ndep[a]->pid, &status, 0);
+      a++;
+    }
+  a = 0;
+  while (t->dep[a] != NULL)
+    {
+      if (t->dep[a]->pid > 0)
+	waitpid(t->dep[a]->pid, &status, 0);
+      a++;
+    }
   if (i && j) return 1;
   else return 0;
 }
