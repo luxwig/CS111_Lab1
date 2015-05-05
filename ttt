@@ -1,0 +1,31 @@
+total 284
+12804792 drwxr-xr-x 4 sichen eeugrad  4096 Apr 28 23:39 .
+24717677 drwx------ 4 sichen eeugrad  4096 Apr 23 09:58 ..
+12804794 drwxr-xr-x 8 sichen eeugrad  4096 Apr 24 01:38 .git
+33281920 -rw-r--r-- 1 sichen eeugrad 12288 Apr 28  2015 .tst.swp
+25886748 drwxr-xr-x 2 sichen eeugrad  4096 Apr  9 13:20 Debug
+ 9034809 -rw-r--r-- 1 sichen eeugrad  1189 Apr  2 16:25 Makefile
+29810889 -rw-r--r-- 1 sichen eeugrad   577 Apr 23 16:40 README
+  124008 -rw-r--r-- 1 sichen eeugrad   711 Apr  3 01:58 alloc.c
+  124007 -rw-r--r-- 1 sichen eeugrad   176 Apr  3 01:58 alloc.h
+33281913 -rw-r--r-- 1 sichen eeugrad  5504 Apr 28 23:38 alloc.o
+29810890 -rwxr--r-- 1 sichen eeugrad   507 Apr 24 01:10 case.bash
+ 1323547 -rwxr--r-- 1 sichen eeugrad   508 Apr 21 09:33 check-dist
+  124020 -rw-r--r-- 1 sichen eeugrad   762 Apr  3 01:58 command-internals.h
+  124014 -rw-r--r-- 1 sichen eeugrad  1012 Apr  3 01:58 command.h
+29810888 -rw-r--r-- 1 sichen eeugrad  5185 Apr 23 14:50 execute-command.c
+33281915 -rw-r--r-- 1 sichen eeugrad 13992 Apr 28 23:38 execute-command.o
+  124018 -rw-r--r-- 1 sichen eeugrad  1470 Apr  3 01:58 main.c
+33281916 -rw-r--r-- 1 sichen eeugrad  8864 Apr 28 23:38 main.o
+  124019 -rw-r--r-- 1 sichen eeugrad  1220 Apr  3 01:58 print-command.c
+33281918 -rw-r--r-- 1 sichen eeugrad  6008 Apr 28 23:38 print-command.o
+16990895 -rw-r--r-- 1 sichen eeugrad 19783 Apr  9 13:31 read-command.c
+33281917 -rw-r--r-- 1 sichen eeugrad 37152 Apr 28 23:38 read-command.o
+12269523 -rwxr--r-- 1 sichen eeugrad   328 Apr 24 01:35 setup
+31494341 -rw-r--r-- 1 sichen eeugrad 29286 Apr  9 13:20 test
+29810894 -rwxr--r-- 1 sichen eeugrad   556 Apr 23 08:27 test-e-bad.sh
+ 1323553 -rwxr--r-- 1 sichen eeugrad   980 Apr 21 09:33 test-p-bad.sh
+ 1323554 -rwxr--r-- 1 sichen eeugrad  1066 Apr 21 09:33 test-p-ok.sh
+33281919 -rwxr-xr-x 1 sichen eeugrad 46621 Apr 28 23:38 timetrash
+33281921 -rw-r--r-- 1 sichen eeugrad    31 Apr 28 23:39 tst
+33281922 -rw-r--r-- 1 sichen eeugrad     0 Apr 28 23:39 ttt

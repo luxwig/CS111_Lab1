@@ -1,8 +1,9 @@
 // UCLA CS 111 Lab 1 command execution
-
+#define _DEBUG
 #define UNUSED(x) (void)(x)
 #include "command.h"
 #include "command-internals.h"
+#include "alloc.h"
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -256,6 +257,10 @@ void exe_cmd(command_t c)
 	}
 }
 
+
+struct wlist* cmd_parse_output(command_t c);
+struct rlist* cmd_parse_input(command_t c);
+
 struct wlist* simple_cmd_parse_output(command_t c)
 {
 	struct wlist* t = NULL;
@@ -279,9 +284,8 @@ struct rlist* simple_cmd_parse_input(command_t c)
 		t->content = c->input;
 		t->next = NULL;
 	}
-	else
 	{
-		int i = 0;
+		int i = 1;
 		char* words;
 		while ((words = c->u.word[i]) != NULL)
 		{
@@ -365,6 +369,7 @@ struct rlist* bi_cmd_parse_input(command_t c)
 	return t1;
 }
 
+
 struct wlist* cmd_parse_output(command_t c)
 {
 	switch (c->type)
@@ -378,7 +383,7 @@ struct wlist* cmd_parse_output(command_t c)
 	}
 }
 
-struct rlist* cmd_parse_intput(command_t c)
+struct rlist* cmd_parse_input(command_t c)
 {
 	switch (c->type)
 	{
@@ -407,6 +412,7 @@ rwnode* create_rwnode(command_t c)
 	return t;
 }
 
+#ifndef _DEBUG
 bool check_RAW(const rwnode* r, const rwnode* w)
 {
 	struct wlist* tmp = w;
@@ -426,7 +432,15 @@ bool check_dependency(const rwnode*t1, const rwnode*t2)
 	struct wlist* w2 = cmd_parse_output(t2);
 	check_RAW(r2, w1);
 }
+#else
+bool check_dependency(const rwnode*t1, const rwnode*t2)
+{
+  UNUSED(t1);UNUSED(t2);
+  return false;
+}
+#endif
 
+/*
 void create_graph(command_stream_t s)
 {
 	command_t c;
@@ -437,13 +451,17 @@ void create_graph(command_stream_t s)
 	}
 
 }
-
+*/
 
 void
 execute_command(command_t c, bool time_travel)
 {
 	if (time_travel == 0)
+	{
+	  	rwnode* n = create_rwnode(c);
+	  	UNUSED(n);
 		exe_cmd(c);
-	else
-		createGraph(c);
+	}
+//	else
+//		createGraph(c);
 }

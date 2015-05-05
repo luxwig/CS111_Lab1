@@ -1,0 +1,9 @@
+execute-command.o: In function `sub_cmd_parse_input':
+execute-command.c:(.text+0xa5d): undefined reference to `cmd_parse_input'
+execute-command.o: In function `bi_cmd_parse_input':
+execute-command.c:(.text+0xb67): undefined reference to `cmd_parse_input'
+execute-command.c:(.text+0xb7b): undefined reference to `cmd_parse_input'
+execute-command.o: In function `create_rwnode':
+execute-command.c:(.text+0xca7): undefined reference to `cmd_parse_input'
+collect2: error: ld returned 1 exit status
+make: *** [timetrash] Error 1
