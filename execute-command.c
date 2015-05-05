@@ -519,7 +519,7 @@ graphNode* createGraphNode(rwnode* node, graphNode** nodeList)
   return ret;
 }
 
-depGraph* createGraph(command_stream_t s)
+void* createGraph(command_stream_t s)
 {
   size_t count = 0;
   command_t c;
@@ -531,7 +531,7 @@ depGraph* createGraph(command_stream_t s)
       gNode[count] = createGraphNode(t, glist);
       count++;
     }
-  return NULL;
+
 }
 
 int executeNoDep(graphNode** c)

@@ -53,7 +53,7 @@ main(int argc, char **argv)
   command_t command;
 
   if (time_travel) {
-    depGraph*graph = createGraph(command_stream);
+    createGraph(command_stream);
     int finalstatus = 0;
     if (graph != NULL)
       {
