@@ -1,5 +1,3 @@
-// UCLA CS 111 Lab 1 main program
-
 #include <errno.h>
 #include <error.h>
 #include <getopt.h>
@@ -11,19 +9,19 @@ static char const *program_name;
 static char const *script_name;
 
 static void
-usage (void)
+usage(void)
 {
-  error (1, 0, "usage: %s [-pt] SCRIPT-FILE", program_name);
+  error(1, 0, "usage: %s [-pt] SCRIPT-FILE", program_name);
 }
 
 static int
-get_next_byte (void *stream)
+get_next_byte(void *stream)
 {
-  return getc (stream);
+  return getc(stream);
 }
 
 int
-main (int argc, char **argv)
+main(int argc, char **argv)
 {
   int command_number = 1;
   bool print_tree = false;
@@ -31,41 +29,56 @@ main (int argc, char **argv)
   program_name = argv[0];
 
   for (;;)
-    switch (getopt (argc, argv, "pt"))
+    switch (getopt(argc, argv, "pt"))
       {
       case 'p': print_tree = true; break;
       case 't': time_travel = true; break;
-      default: usage (); break;
+      default: usage(); break;
       case -1: goto options_exhausted;
       }
  options_exhausted:;
 
   // There must be exactly one file argument.
   if (optind != argc - 1)
-    usage ();
+    usage();
 
   script_name = argv[optind];
-  FILE *script_stream = fopen (script_name, "r");
-  if (! script_stream)
-    error (1, errno, "%s: cannot open", script_name);
+  FILE *script_stream = fopen(script_name, "r");
+  if (!script_stream)
+    error(1, errno, "%s: cannot open", script_name);
   command_stream_t command_stream =
-    make_command_stream (get_next_byte, script_stream);
+    make_command_stream(get_next_byte, script_stream);
 
   command_t last_command = NULL;
   command_t command;
-  while ((command = read_command_stream (command_stream)))
+
+  if (time_travel) {
+    depGraph*graph = createGraph(command_stream);
+    int finalstatus = 0;
+    if (graph != NULL)
+      {
+      finalstatus = executeGraph(graph);
+      if (finalstatus == 0) error(1, 0, "error");
+      }
+    else
+      error(127,0,"empty file");
+  }
+  else
     {
-      if (print_tree)
+      while ((command = read_command_stream(command_stream)))
 	{
-	  printf ("# %d\n", command_number++);
-	  print_command (command);
-	}
-      else
-	{
-	  last_command = command;
-	  execute_command (command, time_travel);
+	  if (print_tree)
+	    {
+	      printf("# %d\n", command_number++);
+	      print_command(command);
+	    }
+	  else
+	    {
+	      last_command = command;
+	      execute_command(command, time_travel);
+	    }
 	}
     }
 
-  return print_tree || !last_command ? 0 : command_status (last_command);
+  return print_tree || !last_command ? 0 : command_status(last_command);
 }
