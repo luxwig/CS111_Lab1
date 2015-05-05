@@ -10,7 +10,7 @@ typedef struct command_stream *command_stream_t;
 
 typedef struct
 {
-  	commond_t cmd;
+  	command_t cmd;
 	struct rlist* readlist;
 	struct wlist* writelist;
 }rwnode;
@@ -68,3 +68,5 @@ void execute_command(command_t, bool);
 /* Return the exit status of a command, which must have previously
 been executed.  Wait for the command, if it is not already finished.  */
 int command_status(command_t);
+
+void createGraph(command_stream_t);

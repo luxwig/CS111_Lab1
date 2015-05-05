@@ -1,2 +1,9 @@
-ls a.txt | cat q.txt <4 > 1.txt | help t -u y > 1.txt
+ls
 
+ls > a.txt
+
+cat a.txt
+
+ls > b.txt
+
+cat b.txt

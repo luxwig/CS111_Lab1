@@ -396,62 +396,83 @@ struct rlist* cmd_parse_input(command_t c)
 	}
 }
 
-
 rwnode* create_rwnode(command_t c)
 {
-	rwnode* t = checked_malloc(sizeof(rwnode));
-	//create read/write list
-	t->readlist = cmd_parse_input(c);
-	t->writelist = cmd_parse_output(c);
-	//create node to store the root node of each cmd tree
-	t->n.cmd->input = c->input;
-	t->n.cmd->output = c->output;
-	t->n.cmd->status = c->status;
-	t->n.cmd->type = c->type;
-	t->n.cmd->u = c->u;
-	return t;
+        rwnode* t = checked_malloc(sizeof(rwnode));
+        //create read/write list
+        t->readlist = cmd_parse_input(c);
+        t->writelist = cmd_parse_output(c);
+        //create node to store the root node of each cmd tree
+        t->cmd = c;
+        return t;
 }
 
-#ifndef _DEBUG
-bool check_RAW(const rwnode* r, const rwnode* w)
+bool check_RAW(struct wlist* t1, struct rlist* t2)
 {
-	struct wlist* tmp = w;
-	while (tmp != NULL)
-	{
-		if (strcmp(tmp, r) == 0)
-			return false;
-		tmp = tmp->next;
-	}
+  struct wlist* w = t1;
+  struct rlist* r = t2;
+  while (r != NULL)
+    {
+      while (w != NULL)
+        {
+          if (strcmp((w->content),(r->content)) == 0)
+            return false;
+          w = w->next;
+        }
+      r = r->next;
+    }
+  return true;
+}
+
+bool check_WAW(struct wlist* t1, struct wlist* t2)
+{
+  struct wlist* w1 = t1;
+  struct wlist* w2 = t2;
+  while (w1 != NULL)
+    {
+      while (w2 != NULL)
+        {
+          if (strcmp((w1->content),(w2->content)))
+            return false;
+          w2 = w2->next;
+        }
+      w1 = w1->next;
+    }
+  return true;
+}
+
+bool check_WAR(struct rlist* t1,struct wlist* t2)
+{
+  struct rlist* r = t1;
+  struct wlist* w = t2;
+  while (r != NULL)
+    {
+      while (w != NULL)
+        {
+          if (strcmp((w->content),(r->content)) == 0)
+            return false;
+          w = w->next;
+        }
+      r = r->next;
+    }
+  return true;
+
 }
 
 bool check_dependency(const rwnode*t1, const rwnode*t2)
 {
-	struct rlist* r1 = cmd_parse_input(t1);
-	struct wlist* w1 = cmd_parse_output(t1);
-	struct rlist* r2 = cmd_parse_input(t2);
-	struct wlist* w2 = cmd_parse_output(t2);
-	check_RAW(r2, w1);
+  struct rlist* r1 = cmd_parse_input(t1->cmd);
+  struct wlist* w1 = cmd_parse_output(t1->cmd);
+  struct rlist* r2 = cmd_parse_input(t2->cmd);
+  struct wlist* w2 = cmd_parse_output(t2->cmd);
+  if (!check_RAW(w1, r2)) return false;
+  if (!check_WAW(w1, w2)) return false;
+  if (!check_WAR(r1, w2)) return false;
+  return true;
 }
-#else
-bool check_dependency(const rwnode*t1, const rwnode*t2)
-{
-  UNUSED(t1);UNUSED(t2);
-  return false;
-}
-#endif
 
-/*
-void create_graph(command_stream_t s)
-{
-	command_t c;
-	while ((c = read_command_stream(s)))
-	{
-		rwnode* t = create_rwnode(c);
 
-	}
 
-}
-*/
 size_t getSize(graphNode **list)
 {
   if (!list) return 0;
@@ -481,7 +502,7 @@ void add(graphNode* list[], graphNode* item)
   list[size - 2] = item; 
 }
 
-graphNode* creategGraphNode(rwnode* node, graphNode** nodeList)
+graphNode* createGraphNode(rwnode* node, graphNode** nodeList)
 {
   graphNode* ret = checked_malloc(sizeof(graphNode));
   ret->cmdNode = node;
@@ -498,15 +519,33 @@ graphNode* creategGraphNode(rwnode* node, graphNode** nodeList)
   return ret;
 }
 
+void createGraph(command_stream_t s)
+{
+  	size_t count = 0;
+	command_t c;
+	graphNode** gNode = checked_malloc(sizeof(graphNode*) * 1000);
+	graphNode** glist = NULL; 
+	while ((c = read_command_stream(s)))
+	{
+		rwnode* t = create_rwnode(c);
+		gNode[count] = createGraphNode(t,glist);
+		count++;
+	}
+
+}
+
+
+
+
 void
 execute_command(command_t c, bool time_travel)
 {
 	if (time_travel == 0)
 	{
-	  	rwnode* n = create_rwnode(c);
-	  	UNUSED(n);
 		exe_cmd(c);
 	}
-//	else
-//		createGraph(c);
+	//else
+	//{
+		//createGraph(c);
+	//}
 }
