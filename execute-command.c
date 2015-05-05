@@ -452,6 +452,51 @@ void create_graph(command_stream_t s)
 
 }
 */
+size_t getSize(graphNode **list)
+{
+  if (!list) return 0;
+  size_t s = 0;
+  while(*list)
+  {
+    list++;
+    s++;
+  }
+  return s + 1;
+}
+
+void add(graphNode* list[], graphNode* item)
+{
+  size_t size = getSize(list);
+  if (size == 0)
+  {
+    size = 2;
+    list = checked_malloc(sizeof(graphNode*) * 2);
+  }
+  else
+  {
+    size += 1;
+    checked_realloc(list, sizeof(graphNode*) * size);
+  }
+  list[size - 1] = NULL;
+  list[size - 2] = item; 
+}
+
+graphNode* creategGraphNode(rwnode* node, graphNode** nodeList)
+{
+  graphNode* ret = checked_malloc(sizeof(graphNode));
+  ret->cmdNode = node;
+  ret->before = NULL;
+  ret->pid = -1;
+  graphNode** head = nodeList;
+  while (head)
+  {
+    if (!check_dependency(node, (*head)->cmdNode))
+      add(ret->before, *head);
+    head++;
+  }
+  add(nodeList, ret);
+  return ret;
+}
 
 void
 execute_command(command_t c, bool time_travel)

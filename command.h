@@ -7,28 +7,32 @@
 typedef struct command *command_t;
 typedef struct command_stream *command_stream_t;
 
-typedef struct
-{
-	command_t cmd;
-	struct graphNode** before;
-	pid_t pid;   //initialize to -1
-}graphNode;
 
 typedef struct
 {
+  	commond_t cmd;
 	struct rlist* readlist;
 	struct wlist* writelist;
-	graphNode n;
 }rwnode;
 
-typedef struct
-{
-	graphNode* no_dependency;
-	graphNode* dependency;
-}DependencyGraph;
 
 typedef struct rwnode* rwnode_t;
+
+struct graphNN
+{
+	rwnode* cmdNode;
+	struct graphNN** before;
+	pid_t pid;   //initialize to -1
+};
+typedef struct graphNN graphNode;
+
 typedef struct graphNode* graphNode_t;
+typedef struct
+{
+	graphNode* ndep;
+	graphNode* dep;
+}depGraph;
+
 
 
 struct rlist
