@@ -14,7 +14,48 @@
 #include <pthread.h>
 #include <error.h>
 #include <string.h>
-          
+
+#ifdef _DEBUG
+#include <stdio.h>
+
+void printExam(graphNode* n)
+{
+  printf("Address %p\n", n);
+  printf("cmd %s, input %s, output %s\n", n->cmdNode->cmd->u.word[0],
+ 					n->cmdNode->cmd->input,
+					n->cmdNode->cmd->output);
+  graphNode ** head =  n->before;
+
+  printf("Depend on :");
+  while (head && *head)
+  {
+    printf("%p\t",*head);
+    head++;
+  }
+  printf("\n\n");
+}
+
+void printdep(depGraph* g)
+{
+  graphNode ** head = g->dep;
+  printf("Dependent command:\n");
+  while (head && *head)
+  {
+    printf("%p\t", *head);
+    head++;
+  }
+  printf("\n");
+  head = g->ndep;
+  printf("Independent command:\n");
+  while (head && *head)
+  {
+    printf("%p\t", *head);
+    head++;
+  }
+  printf("\n");
+}
+#endif
+
 void exe_cmd(command_t c);
 
 int command_status(command_t c)
@@ -432,7 +473,7 @@ bool check_WAW(struct wlist* t1, struct wlist* t2)
     {
       while (w2 != NULL)
         {
-          if (strcmp((w1->content),(w2->content)))
+          if (!strcmp((w1->content),(w2->content)))
             return false;
           w2 = w2->next;
         }
@@ -485,7 +526,7 @@ size_t getSize(graphNode **list)
   return s + 1;
 }
 
-void add(graphNode* list[], graphNode* item)
+graphNode** add(graphNode* list[], graphNode* item)
 {
   size_t size = getSize(list);
   if (size == 0)
@@ -496,45 +537,74 @@ void add(graphNode* list[], graphNode* item)
   else
   {
     size += 1;
-    checked_realloc(list, sizeof(graphNode*) * size);
+    list = checked_realloc(list, sizeof(graphNode*) * size);
   }
   list[size - 1] = NULL;
   list[size - 2] = item; 
+  return list;
 }
 
-graphNode* createGraphNode(rwnode* node, graphNode** nodeList)
+graphNode* createGraphNode(rwnode* node, graphNode** nodeList, int count)
 {
   graphNode* ret = checked_malloc(sizeof(graphNode));
   ret->cmdNode = node;
   ret->before = NULL;
   ret->pid = -1;
   graphNode** head = nodeList;
-  while (head)
+  int i = 0;
+  for (i = 0; i < count; i++)
   {
     if (!check_dependency(node, (*head)->cmdNode))
-      add(ret->before, *head);
+    {
+      ret->before = add(ret->before, *head);
+    }
     head++;
   }
-  add(nodeList, ret);
   return ret;
 }
 
-void createGraph(command_stream_t s)
+depGraph* createGraph(command_stream_t s)
 {
-  	size_t count = 0;
+  	size_t count = 0,
+	       ndep_c = 0,
+	       dep_c = 0;
 	command_t c;
-	graphNode** gNode = checked_malloc(sizeof(graphNode*) * 1000);
-	graphNode** glist = NULL; 
+	depGraph* ret = checked_malloc(sizeof(depGraph*));
+	ret->ndep = checked_malloc(sizeof(graphNode*));
+	ret->dep = checked_malloc(sizeof(graphNode*));
+	ret->ndep[0] = NULL;
+	ret->dep[0] = NULL;
+	graphNode** gNode = checked_malloc(sizeof(graphNode*));
 	while ((c = read_command_stream(s)))
 	{
+	  	gNode = checked_realloc(gNode, sizeof(graphNode*) * (count+2));
 		rwnode* t = create_rwnode(c);
-		gNode[count] = createGraphNode(t,glist);
+		gNode[count] = createGraphNode(t,gNode,count);
+		if (gNode[count]->before)
+		{
+		  ret->dep = checked_realloc(ret->dep, sizeof(graphNode*) * (dep_c+2));
+		  ret->dep[dep_c] = gNode[count];
+		  dep_c++;
+		  ret->dep[dep_c] = NULL;
+		}
+		else
+		{
+		  ret->ndep = checked_realloc(ret->ndep, sizeof(graphNode*) * (ndep_c+2));
+		  ret->ndep[ndep_c] = gNode[count];
+		  ndep_c++;
+		  ret->ndep[ndep_c] = NULL;
+		}
+		gNode[count + 1] = NULL;
+#ifdef _DEBUG
+		printExam(gNode[count]);
+#endif
 		count++;
 	}
-
+#ifdef _DEBUG
+	printdep(ret);
+#endif
+        return ret;
 }
-
-
 
 
 void
