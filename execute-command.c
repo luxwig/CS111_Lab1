@@ -1,5 +1,5 @@
 // UCLA CS 111 Lab 1 command execution
-#define _DEBUG
+//#define _DEBUG
 #define UNUSED(x) (void)(x)
 #include "command.h"
 #include "command-internals.h"
@@ -16,13 +16,19 @@
 #include <string.h>
 
 /*
+ * DEBUG INFO:
+ *
 #ifdef _DEBUG
 #include <stdio.h>
 
 void printExam(graphNode* n)
 {
+  if (!n) return;
   printf("Address %p\n", n);
-  printf("cmd %s, input %s, output %s\n", n->cmdNode->cmd->u.word[0],
+  if (n->cmdNode->cmd->type != SIMPLE_COMMAND) 
+    printf("cmd type: %d\n",n->cmdNode->cmd->type);
+  else 
+    printf("cmd %s, input %s, output %s\n", n->cmdNode->cmd->u.word[0],
  					n->cmdNode->cmd->input,
 					n->cmdNode->cmd->output);
   graphNode ** head =  n->before;
@@ -38,6 +44,7 @@ void printExam(graphNode* n)
 
 void printdep(depGraph* g)
 {
+  if (!g) return;
   graphNode ** head = g->dep;
   printf("Dependent command:\n");
   while (head && *head)
@@ -597,16 +604,26 @@ depGraph* createGraph(command_stream_t s)
 		  ret->ndep[ndep_c] = NULL;
 		}
 		gNode[count + 1] = NULL;
-		/*
+
+/*
+ * DEBUG INFO:
+ *
 #ifdef _DEBUG
 		printExam(gNode[count]);
-		#endif*/
+#endif
+*/
+
 		count++;
 	}
-	/*
+
+/*
+ * DEBUG INFO
+ *
 #ifdef _DEBUG
 	printdep(ret);
-	#endif*/
+#endif
+*/
+
         return ret;
 }
 
